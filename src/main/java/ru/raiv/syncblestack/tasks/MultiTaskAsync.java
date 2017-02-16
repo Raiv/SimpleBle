@@ -2,23 +2,21 @@ package ru.raiv.syncblestack.tasks;
 
 import android.os.Handler;
 
-import java.util.Arrays;
 import java.util.Collection;
 
 /**
  * Created by Raiv on 07.01.2017.
  */
 
-public class MultiTaskAsync extends MultiTask implements BleAsyncTask {
+class MultiTaskAsync extends MultiTask implements BleAsyncTask {
 
     private BleTaskCompleteCallback callback;
     private Handler callbackHandler;
 
-    public MultiTaskAsync(Collection<BleOperation> tasks) {
+    MultiTaskAsync(Collection<BleOperation> tasks, BleTaskCompleteCallback callback, Handler callbackHandler) {
         super(tasks);
-    }
-    public MultiTaskAsync(BleOperation... tasks) {
-        super(Arrays.asList(tasks));
+        this.callbackHandler=callbackHandler;
+        this.callback=callback;
     }
 
     @Override

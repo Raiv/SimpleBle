@@ -7,18 +7,18 @@ import android.support.annotation.NonNull;
  * Created by Raiv on 07.01.2017.
  */
 
-public class SingleTaskAsync extends SingleTask implements BleAsyncTask {
+class SingleTaskAsync extends SingleTask implements BleAsyncTask {
     private BleTaskCompleteCallback callback;
     private Handler callbackHandler;
 
-    public SingleTaskAsync(@NonNull BleOperation operation) {
+    SingleTaskAsync(@NonNull BleOperation operation) {
         super(operation);
     }
-    public SingleTaskAsync(@NonNull BleOperation operation,BleTaskCompleteCallback callback) {
+    SingleTaskAsync(@NonNull BleOperation operation, BleTaskCompleteCallback callback) {
         super(operation);
         this.callback=callback;
     }
-    public SingleTaskAsync(@NonNull BleOperation operation,BleTaskCompleteCallback callback,Handler callbackHandler) {
+    SingleTaskAsync(@NonNull BleOperation operation, BleTaskCompleteCallback callback, Handler callbackHandler) {
         super(operation);
         this.callback=callback;
         this.callbackHandler=callbackHandler;

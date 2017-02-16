@@ -7,6 +7,7 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
 import android.bluetooth.BluetoothGattCallback;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
@@ -23,12 +24,14 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import ru.raiv.syncblestack.tasks.BleAsyncTask;
 import ru.raiv.syncblestack.tasks.BleOperation;
+import ru.raiv.syncblestack.tasks.BleOperationType;
 import ru.raiv.syncblestack.tasks.BleSyncTask;
 import ru.raiv.syncblestack.tasks.BleTask;
 import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
@@ -47,8 +50,10 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
     public final static String ACTION_DEVICE_ERROR = "ACTION_DEVICE_ERROR";
     public final static String PARAM_DEVICE_ERROR =ACTION_DEVICE_ERROR.concat(".ERROR");
     public final static String ACTION_DEVICES_FOUND = "ACTION_DEVICES_FOUND";
-    public final static String ACTION_SEARCH_FINISHED = "ACTION_SEARCH_FINISHED";
     public final static String PARAM_DEVICES_FOUND_LIST =ACTION_DEVICES_FOUND.concat(".LIST");
+    public final static String ACTION_SEARCH_FINISHED = "ACTION_SEARCH_FINISHED";
+    public final static String ACTION_CHARACTERISTIC_NOTIFICATION = "ACTION_CHARACTERISTIC_NOTIFICATION";
+    public final static String PARAM_CHARACTERISTIC_NOTIFICATION =ACTION_CHARACTERISTIC_NOTIFICATION.concat(".CHARACTERISTIC");
 
     public static final IntentFilter bleServiceFilter = makeBleServiceFilter();
 
@@ -59,6 +64,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
         iFilter.addAction(ACTION_DEVICES_FOUND);
         iFilter.addAction(ACTION_DEVICE_ERROR);
         iFilter.addAction(ACTION_SEARCH_FINISHED);
+        iFilter.addAction(ACTION_CHARACTERISTIC_NOTIFICATION);
         return iFilter;
     }
 
@@ -228,39 +234,50 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
             if(gatt.equals(currentGatt.gatt)){
-              // do nothing???
+                BleOperation operation = new BleOperation(characteristic.getService().getUuid(),characteristic.getUuid(),characteristic.getValue(), BleOperationType.LISTEN);
+                operation.setSucceed(true);
+                broadcastCharacteristicNotification(operation);
             }
         }
 
+
+
+        @Override
+        public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
+            super.onDescriptorWrite(gatt, descriptor, status);
+            if(gatt.equals(currentGatt.gatt)) {
+                if (status == BluetoothGatt.GATT_SUCCESS) {
+                    finishNotification();
+                } else {
+                    broadcastGattError(status);
+                    finishTask();
+                }
+            }
+        }
     };
     private ExecutorService syncTaskExecutor = Executors.newSingleThreadExecutor();
 
     public class BLEServiceBinder extends Binder {
 
-        public void addTask(BleSyncTask task){
-            synchronized (gattSync){
-                taskQueue.offer(task);
-                if(currentGatt!=null && currentGatt.isReady){
-                    syncTaskExecutor.execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            doJob();
-                        }
-                    });
-
-                }
-            }
-
-
-        }
-        public void addAsyncTask(BleAsyncTask task){
+        public void addTask(BleTask task){
             synchronized (gattSync){
                 taskQueue.add(task);
                 if(currentGatt!=null && currentGatt.isReady){
-                    doJob();
+                    if(task.isSync()) {
+                        syncTaskExecutor.execute(new Runnable() {
+                            @Override
+                            public void run() {
+                                doJob();
+                            }
+                        });
+                    }else{
+                        doJob();
+                    }
+
                 }
             }
         }
+
         public void connectDevice(String deviceAddress){
 
             setScanning(false,false);
@@ -341,6 +358,19 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
 
     }
 
+    private void finishNotification(){
+        BleTask task = null;
+        synchronized (gattSync) {
+            task = taskQueue.peek();
+        }
+        if(task!=null){
+            final BleOperation operation =task.current();
+            operation.setSucceed(true);
+            finishOperation(task);
+        }
+
+    }
+
     private void finishOperation(BleTask task){
         if(task.hasNext()){
             inJob=false;
@@ -391,6 +421,16 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                             operation.setSucceed(true);
                             check=true;
                             break;
+                        case LISTEN:
+                            byte[] data = operation.getValue();
+                            currentGatt.gatt.setCharacteristicNotification(characteristic,true);
+                            UUID uuid = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
+                            BluetoothGattDescriptor descriptor = characteristic.getDescriptor(uuid);
+                            descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                            currentGatt.gatt.writeDescriptor(descriptor);
+                            check=true;
+                            operation.setSucceed(true);
+                            break;
                     }
 
                 }
@@ -405,6 +445,12 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
 
     private void broadcastScanFinish(){
         Intent i = new Intent( ACTION_SEARCH_FINISHED);
+        sendBroadcast(i);
+    }
+
+    private void broadcastCharacteristicNotification(BleOperation operation){
+        Intent i = new Intent( ACTION_CHARACTERISTIC_NOTIFICATION);
+        i.putExtra(PARAM_CHARACTERISTIC_NOTIFICATION,operation);
         sendBroadcast(i);
     }
 

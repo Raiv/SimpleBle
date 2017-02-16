@@ -6,7 +6,7 @@ import android.support.annotation.NonNull;
  * Created by Raiv on 07.01.2017.
  */
 
-public class SingleTaskSync extends SingleTask implements BleSyncTask {
+class SingleTaskSync extends SingleTask implements BleSyncTask {
     SingleTaskSync(@NonNull BleOperation operation) {
         super(operation);
     }

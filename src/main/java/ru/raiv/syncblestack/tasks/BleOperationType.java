@@ -8,5 +8,6 @@ public enum BleOperationType {
     READ,
     WRITE,
     WRITE_NO_RESPONCE,
-    CHECK;
+    CHECK,
+    LISTEN;
 }

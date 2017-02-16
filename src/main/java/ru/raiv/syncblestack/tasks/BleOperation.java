@@ -1,40 +1,120 @@
 package ru.raiv.syncblestack.tasks;
 
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.UUID;
 
 /**
  * Created by Raiv on 07.01.2017.
  */
 
-public class BleOperation {
-    private UUID service;
-    private UUID characteristic;
+public class BleOperation implements Parcelable{
+
 
     private byte[] value;
-    private BleOperationType opType;
-    private boolean succeed = false;
 
-    public BleOperation(@NonNull UUID service,@NonNull UUID characteristic, @Nullable byte[] value,@NonNull BleOperationType opType){
+    private boolean succeed = false;
+    private UUID service;
+    private UUID characteristic;
+    private BleOperationType opType;
+
+
+    public BleOperation(@NonNull UUID characteristic, @Nullable byte[] value, @NonNull BleOperationType opType){
+        if(defaultService==null){
+            throw new RuntimeException("BleOperation: no default service set!");
+        }
+        init(defaultService,characteristic,value,opType);
+    }
+    public BleOperation(@NonNull UUID characteristic, @NonNull BleOperationType opType){
+        if(defaultService==null){
+            throw new RuntimeException("BleOperation: no default service set!");
+        }
+        init(defaultService,characteristic,null,opType);
+    }
+    public BleOperation(@NonNull String characteristic, @Nullable byte[] value, @NonNull BleOperationType opType){
+        if(defaultService==null){
+            throw new RuntimeException("BleOperation: no default service set!");
+        }
+        init(defaultService,UUID.fromString(characteristic),value,opType);
+    }
+    public BleOperation(@NonNull String characteristic, @NonNull BleOperationType opType){
+        if(defaultService==null){
+            throw new RuntimeException("BleOperation: no default service set!");
+        }
+        init(defaultService,UUID.fromString(characteristic),null,opType);
+    }
+
+
+
+    public BleOperation(@NonNull UUID service, @NonNull UUID characteristic, @Nullable byte[] value, @NonNull BleOperationType opType){
         init(service,characteristic,value,opType);
     }
-    public BleOperation(@NonNull UUID service,@NonNull UUID characteristic, @NonNull BleOperationType opType){
+    public BleOperation(@NonNull UUID service, @NonNull UUID characteristic, @NonNull BleOperationType opType){
         init(service,characteristic,null,opType);
     }
-    public BleOperation(@NonNull String service,@NonNull String characteristic, @Nullable byte[] value,@NonNull BleOperationType opType){
+    public BleOperation(@NonNull String service, @NonNull String characteristic, @Nullable byte[] value, @NonNull BleOperationType opType){
         init(UUID.fromString(service),UUID.fromString(characteristic),value,opType);
     }
-    public BleOperation(@NonNull String service,@NonNull String characteristic, @NonNull BleOperationType opType){
+    public BleOperation(@NonNull String service, @NonNull String characteristic, @NonNull BleOperationType opType){
         init(UUID.fromString(service),UUID.fromString(characteristic),null,opType);
     }
 
-    private void init(@NonNull UUID service, @NonNull UUID characteristic, @Nullable byte[] value,@NonNull BleOperationType opType){
+
+    protected BleOperation(Parcel in) {
+        value = in.createByteArray();
+        succeed = in.readByte() != 0;
+        service = UUID.fromString(in.readString());
+        characteristic=UUID.fromString(in.readString());
+        int ord = in.readInt();
+        opType=BleOperationType.values()[ord];
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+        dest.writeByteArray(value);
+        dest.writeByte((byte) (succeed ? 1 : 0));
+        dest.writeString(service.toString());
+        dest.writeString(characteristic.toString());
+        dest.writeInt(opType!=null?opType.ordinal():-1);
+    }
+
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    public static final Creator<BleOperation> CREATOR = new Creator<BleOperation>() {
+        @Override
+        public BleOperation createFromParcel(Parcel in) {
+            return new BleOperation(in);
+        }
+
+        @Override
+        public BleOperation[] newArray(int size) {
+            return new BleOperation[size];
+        }
+    };
+
+    private void init(@NonNull UUID service, @NonNull UUID characteristic, @Nullable byte[] value, @NonNull BleOperationType opType){
         this.service=service;
         this.characteristic=characteristic;
         this.value=value;
         this.opType=opType;
+    }
+
+
+
+
+    private static volatile transient UUID defaultService = null;
+    public static void setDefaultService(@NonNull UUID service){
+        defaultService=service;
+    }
+    public static void setDefaultService(@NonNull String service){
+        defaultService=UUID.fromString(service);
     }
 
     public UUID getCharacteristic() {
@@ -47,13 +127,19 @@ public class BleOperation {
     public void setCharacteristic(String characteristic) {
         this.characteristic = UUID.fromString(characteristic);
     }
-    public byte[] getValue() {
-        return value;
+
+    public UUID getService() {
+        return service;
     }
 
-    public void setValue(byte[] value) {
-        this.value = value;
+    public void setService(UUID service) {
+        this.service = service;
     }
+    public void setService(String service) {
+        this.service =UUID.fromString(service);
+    }
+
+
 
     public BleOperationType getOpType() {
         return opType;
@@ -63,12 +149,37 @@ public class BleOperation {
         this.opType = opType;
     }
 
-    public UUID getService() {
-        return service;
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof BleOperation)) return false;
+
+        BleOperation that = (BleOperation) o;
+
+        if (succeed != that.succeed) return false;
+        if (!Arrays.equals(value, that.value)) return false;
+        if (!service.equals(that.service)) return false;
+        if (!characteristic.equals(that.characteristic)) return false;
+        return opType == that.opType;
+
     }
 
-    public void setService(UUID service) {
-        this.service = service;
+    @Override
+    public int hashCode() {
+        int result = Arrays.hashCode(value);
+        result = 31 * result + (succeed ? 1 : 0);
+        result = 31 * result + service.hashCode();
+        result = 31 * result + characteristic.hashCode();
+        result = 31 * result + opType.hashCode();
+        return result;
+    }
+
+    public byte[] getValue() {
+        return value;
+    }
+
+    public void setValue(byte[] value) {
+        this.value = value;
     }
 
     public boolean isSucceed() {
@@ -78,4 +189,6 @@ public class BleOperation {
     public void setSucceed(boolean succeed) {
         this.succeed = succeed;
     }
+
+
 }

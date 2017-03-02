@@ -6,7 +6,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.IBinder;
 
-import ru.raiv.syncblestack.BluetoothLeService;
+import ru.raiv.syncblestack.BluetoothLeServiceSync;
 
 /**
  * Created by Raiv on 16.02.2017.
@@ -17,7 +17,7 @@ public class ServiceConnectionManager {
     Context context;
 
 
-    BluetoothLeService.BLEServiceBinder binder=null;
+    BluetoothLeServiceSync.BLEServiceBinder binder=null;
     boolean needBind=true;
     boolean binding=false;
 
@@ -26,14 +26,14 @@ public class ServiceConnectionManager {
     }
 
 
-    public BluetoothLeService.BLEServiceBinder getBinder(){
+    public BluetoothLeServiceSync.BLEServiceBinder getBinder(){
         return binder;
     }
 
     private void rebindService(){
         if(needBind) {
            // showWaitDialog(getString(R.string.bindingService));
-            Intent intent = new Intent(context, BluetoothLeService.class);
+            Intent intent = new Intent(context, BluetoothLeServiceSync.class);
             context.bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
             binding = true;
         }
@@ -46,8 +46,8 @@ public class ServiceConnectionManager {
         public void onServiceConnected(ComponentName className,
                                        IBinder service) {
             // We've bound to LocalService, cast the IBinder and get LocalService instance
-            if(service!=null && (service instanceof BluetoothLeService.BLEServiceBinder)){
-                binder = (BluetoothLeService.BLEServiceBinder) service;
+            if(service!=null && (service instanceof BluetoothLeServiceSync.BLEServiceBinder)){
+                binder = (BluetoothLeServiceSync.BLEServiceBinder) service;
                 binding=false;
                 //hideWaitDialog();
             }else {

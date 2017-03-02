@@ -41,8 +41,8 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
  * Service for managing connection and data communication with a GATT server
  * hosted on a given Bluetooth LE device.
  */
-@SuppressLint("NewApi") public class BluetoothLeService extends Service {
-    public final static String TAG = BluetoothLeService.class.getSimpleName();
+@SuppressLint("NewApi") public class BluetoothLeServiceSync extends Service {
+    public final static String TAG = BluetoothLeServiceSync.class.getSimpleName();
 
     public final static String ACTION_DEVICE_CONNECTED = "ACTION_DEVICE_CONNECTED";
     public static final String PARAM_DEVICE_NAME=ACTION_DEVICE_CONNECTED.concat("PARAM_DEVICE_NAME");

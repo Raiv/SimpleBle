@@ -2,7 +2,6 @@ package ru.raiv.syncblestack.ui;
 
 import android.Manifest;
 import android.app.Activity;
-//import android.app.Fragment;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothManager;
 import android.content.BroadcastReceiver;
@@ -18,8 +17,13 @@ import android.support.annotation.NonNull;
 import android.support.v4.content.ContextCompat;
 import android.widget.Toast;
 
+import ru.raiv.syncblestack.BleBinder;
+import ru.raiv.syncblestack.BleCallbacks;
+import ru.raiv.syncblestack.BleConst;
 import ru.raiv.syncblestack.BluetoothLeServiceSync;
 import ru.raiv.syncblestack.R;
+
+//import android.app.Fragment;
 
 /**
  * Created by Raiv on 16.02.2017.
@@ -33,12 +37,11 @@ public class ServiceConnectionManager {
     private static final int REQUEST_ENABLE_GPS = 1;
 
     private static final int TYPE_BLE_PERMISSION = 128;
-    private static final int TYPE_GPS_PERMISSION = 129;
 
 
 
 
-    private BluetoothLeServiceSync.BLEServiceBinder binder=null;
+    private BleBinder binder=null;
     private BluetoothAdapter mBluetoothAdapter;
     private LocationManager locationManager;
    // private boolean needBind=true;
@@ -48,6 +51,11 @@ public class ServiceConnectionManager {
 
     private android.app.Fragment frag;
     private android.support.v4.app.Fragment fragv4;
+
+    private BleCallbacks callbacks;
+
+
+
 
 
     public ServiceConnectionManager (@NonNull android.app.Fragment fragment, @NonNull BroadcastReceiver receiver){
@@ -68,8 +76,26 @@ public class ServiceConnectionManager {
         this.receiver=receiver;
     }
 
+    public ServiceConnectionManager (@NonNull android.app.Fragment fragment,@NonNull BleCallbacks callbacks){
+        //android.app.Fragment frag =
+        this.context=fragment.getActivity();
+        frag = fragment;
+        this.receiver=new BleDefaultBroadcastReceiver(callbacks);
+    }
 
-    public BluetoothLeServiceSync.BLEServiceBinder getBinder(){
+    public ServiceConnectionManager (@NonNull android.support.v4.app.Fragment fragment,@NonNull BleCallbacks callbacks) {
+        this.context = fragment.getActivity();
+        fragv4=fragment;
+        this.receiver =new BleDefaultBroadcastReceiver(callbacks);
+    }
+
+    public ServiceConnectionManager (@NonNull Activity context,@NonNull BleCallbacks callbacks){
+        this.context=context;
+        this.receiver=new BleDefaultBroadcastReceiver(callbacks);
+    }
+
+
+    public BleBinder getBinder(){
         return binder;
     }
 
@@ -89,8 +115,8 @@ public class ServiceConnectionManager {
         public void onServiceConnected(ComponentName className,
                                        IBinder service) {
             // We've bound to LocalService, cast the IBinder and get LocalService instance
-            if(service!=null && (service instanceof BluetoothLeServiceSync.BLEServiceBinder)){
-                binder = (BluetoothLeServiceSync.BLEServiceBinder) service;
+            if(service!=null && (service instanceof BleBinder)){
+                binder = (BleBinder) service;
                 binding=false;
                 //hideWaitDialog();
             }else {
@@ -128,7 +154,7 @@ public class ServiceConnectionManager {
                 // Bind to LocalService
                 rebindService();
                 if(!receiverBound){
-                    context.registerReceiver(receiver,BluetoothLeServiceSync.bleServiceFilter);
+                    context.registerReceiver(receiver, BleConst.bleServiceFilter);
                     receiverBound=true;
                 }
             }

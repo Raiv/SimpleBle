@@ -1,12 +1,13 @@
 package ru.raiv.syncblestack.ui;
 
-import android.content.BroadcastReceiver;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+
+import ru.raiv.syncblestack.BleCallbacks;
 
 /**
  * Created by Raiv on 02.03.2017.
@@ -16,13 +17,13 @@ public abstract class BleFragmentCompat extends android.support.v4.app.Fragment{
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        mgr = new ServiceConnectionManager(this,getBleReceiver());
+        mgr = new ServiceConnectionManager(this,getBleCallbacks());
         return super.onCreateView(inflater, container, savedInstanceState);
     }
 
     private ServiceConnectionManager mgr;
 
-    protected abstract BroadcastReceiver getBleReceiver();
+    protected abstract BleCallbacks getBleCallbacks();
     public ServiceConnectionManager getConnectionManager(){
         return mgr;
     }

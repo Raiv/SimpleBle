@@ -2,6 +2,8 @@ package ru.raiv.syncblestack.tasks;
 
 import android.support.annotation.NonNull;
 
+import java.util.UUID;
+
 /**
  * Created by Raiv on 07.01.2017.
  */
@@ -53,6 +55,19 @@ class SingleTask implements BleTask{
         if(!innerHasNext) {
             return operation;
         }return null;
+    }
+
+    @Override
+    public BleOperation getByName(UUID name) {
+        if(operation.getCharacteristic().equals(name)){
+            return operation;
+        }
+        return null;
+    }
+
+    @Override
+    public BleOperation getByName(String name) {
+        return getByName(UUID.fromString(name));
     }
 
     @Override

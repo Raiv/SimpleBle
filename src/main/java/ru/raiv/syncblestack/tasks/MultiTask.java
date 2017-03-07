@@ -2,6 +2,7 @@ package ru.raiv.syncblestack.tasks;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.UUID;
 
 /**
  * Created by Raiv on 07.01.2017.
@@ -9,26 +10,26 @@ import java.util.Collection;
 
 class MultiTask implements BleTask{
 
-    ArrayList<BleOperation> operation=new ArrayList<BleOperation>();
+    ArrayList<BleOperation> operations =new ArrayList<BleOperation>();
     int innerIndex = -1;
 
     MultiTask(Collection<BleOperation> tasks){
-        operation.addAll(tasks);
+        operations.addAll(tasks);
     }
 
 
     public synchronized boolean hasNext(){
 
-            return innerIndex<operation.size()-1;
+            return innerIndex< operations.size()-1;
 
     };
 
     public synchronized BleOperation next(){
 
 
-                if(innerIndex<operation.size()-1) {
+                if(innerIndex< operations.size()-1) {
                     innerIndex++;
-                    return operation.get(innerIndex);
+                    return operations.get(innerIndex);
                 }
 
 
@@ -51,10 +52,25 @@ class MultiTask implements BleTask{
     public synchronized BleOperation current() {
 
             if(innerIndex>=0){
-                return operation.get(innerIndex);
+                return operations.get(innerIndex);
             }
 
         return null;
+    }
+
+    @Override
+    public BleOperation getByName(UUID name) {
+       for(BleOperation current: operations){
+           if(current.getCharacteristic().equals(name)){
+               return current;
+           }
+       }
+       return null;
+    }
+
+    @Override
+    public BleOperation getByName(String name) {
+        return getByName(UUID.fromString(name));
     }
 
     @Override

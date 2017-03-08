@@ -10,7 +10,7 @@ import java.util.UUID;
 
 class MultiTask implements BleTask{
 
-    ArrayList<BleOperation> operations =new ArrayList<BleOperation>();
+    ArrayList<BleOperation> operations =new ArrayList<>();
     int innerIndex = -1;
 
     MultiTask(Collection<BleOperation> tasks){
@@ -76,5 +76,15 @@ class MultiTask implements BleTask{
     @Override
     public synchronized boolean hasCurrent() {
         return innerIndex>=0;
+    }
+
+    @Override
+    public boolean allSucceed() {
+        for(BleOperation op:operations){
+            if(!op.isSucceed()){
+                return false;
+            }
+        }
+        return true;
     }
 }

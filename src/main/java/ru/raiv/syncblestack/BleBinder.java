@@ -18,13 +18,16 @@ public class BleBinder extends Binder {
         owner.addTask(task);
     }
 
-    public void connectDevice(String deviceAddress){
-
-        owner.setScanning(false,false);
-        owner.connect(deviceAddress);
+    public void connectDevice(BleDeviceInfo device){
+        if(device!=null) {
+            owner.setScanning(false, false);
+            owner.connect(device.getAddress());
+        }
     }
-    public void disconnectDevice(String deviceAddress){
-        owner.disconnectDevice(deviceAddress);
+    public void disconnectDevice(BleDeviceInfo device){
+        if(device!=null) {
+            owner.disconnectDevice(device.getAddress());
+        }
 
     }
     public void scanForDeviceOnce(){

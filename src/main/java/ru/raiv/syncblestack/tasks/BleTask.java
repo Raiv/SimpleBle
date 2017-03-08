@@ -15,4 +15,5 @@ public interface BleTask extends Iterator<BleOperation> {
     BleOperation getByName(UUID name);
     BleOperation getByName(String name);
     boolean hasCurrent();
+    boolean allSucceed();
 }

@@ -235,8 +235,8 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
 
     void addTask(BleTask task){
         synchronized (gattSync){
-            taskQueue.add(task);
             if(currentGatt!=null && currentGatt.isReady){
+                taskQueue.add(task);
                 if(task.isSync()) {
                    // BleSyncTask bst = (BleSyncTask)task;
                     syncTaskExecutor.execute(new Runnable() {
@@ -245,11 +245,28 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                             doJob();
                         }
                     });
-
                 }else{
                     doJob();
                 }
 
+            }else{
+                while(task.hasNext()){
+                    BleOperation op = task.next();
+                    op.setSucceed(false);
+                }
+                if((!task.isSync())&&(task instanceof BleAsyncTask)){
+                    final BleAsyncTask asyncTask=((BleAsyncTask) task);
+                    final BleTaskCompleteCallback cb =asyncTask.getCallback();
+                    if(cb!=null) {
+                        ((BleAsyncTask) task).callbackHandler().post(new Runnable() {
+                            @Override
+                            public void run() {
+                                    cb.onTaskComplete(asyncTask);
+                            }
+                        });
+                    }
+                }
+                return;
             }
         }
         if(task.isSync()) {

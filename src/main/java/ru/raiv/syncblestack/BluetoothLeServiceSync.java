@@ -159,6 +159,9 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                     if (gatt.equals(currentGatt.gatt)) {
                         currentGatt.gatt = null;
                         broadcastDeviceState(BleConst.ACTION_DEVICE_DISCONNECTED);
+                        if (inJob){
+                            finishTask();
+                        }
                         Log.i(TAG, myNum() + "Disconnected from GATT server.");
                     }
                 }

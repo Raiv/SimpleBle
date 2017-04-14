@@ -13,8 +13,6 @@ import android.bluetooth.BluetoothManager;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -44,29 +42,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
 @SuppressLint("NewApi") public class BluetoothLeServiceSync extends Service {
     public final static String TAG = BluetoothLeServiceSync.class.getSimpleName();
 
-    public final static String ACTION_DEVICE_CONNECTED = "ACTION_DEVICE_CONNECTED";
-    public static final String PARAM_DEVICE_NAME=ACTION_DEVICE_CONNECTED.concat("PARAM_DEVICE_NAME");
-    public final static String ACTION_DEVICE_DISCONNECTED = "ACTION_DEVICE_DISCONNECTED";
-    public final static String ACTION_DEVICE_ERROR = "ACTION_DEVICE_ERROR";
-    public final static String PARAM_DEVICE_ERROR =ACTION_DEVICE_ERROR.concat(".ERROR");
-    public final static String ACTION_DEVICES_FOUND = "ACTION_DEVICES_FOUND";
-    public final static String PARAM_DEVICES_FOUND_LIST =ACTION_DEVICES_FOUND.concat(".LIST");
-    public final static String ACTION_SEARCH_FINISHED = "ACTION_SEARCH_FINISHED";
-    public final static String ACTION_CHARACTERISTIC_NOTIFICATION = "ACTION_CHARACTERISTIC_NOTIFICATION";
-    public final static String PARAM_CHARACTERISTIC_NOTIFICATION =ACTION_CHARACTERISTIC_NOTIFICATION.concat(".CHARACTERISTIC");
 
-    public static final IntentFilter bleServiceFilter = makeBleServiceFilter();
-
-    private static IntentFilter makeBleServiceFilter(){
-        IntentFilter iFilter = new IntentFilter();
-        iFilter.addAction(ACTION_DEVICE_CONNECTED);
-        iFilter.addAction(ACTION_DEVICE_DISCONNECTED);
-        iFilter.addAction(ACTION_DEVICES_FOUND);
-        iFilter.addAction(ACTION_DEVICE_ERROR);
-        iFilter.addAction(ACTION_SEARCH_FINISHED);
-        iFilter.addAction(ACTION_CHARACTERISTIC_NOTIFICATION);
-        return iFilter;
-    }
 
     private static class BluetoothDeviceWrapper {
         public BluetoothGatt gatt;
@@ -182,7 +158,10 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                 synchronized (gattSync) {
                     if (gatt.equals(currentGatt.gatt)) {
                         currentGatt.gatt = null;
-                        broadcastDeviceState(ACTION_DEVICE_DISCONNECTED);
+                        broadcastDeviceState(BleConst.ACTION_DEVICE_DISCONNECTED);
+                        if (inJob){
+                            finishTask();
+                        }
                         Log.i(TAG, myNum() + "Disconnected from GATT server.");
                     }
                 }
@@ -195,7 +174,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                 if (gatt.equals(currentGatt.gatt) ) {
                     if(status == BluetoothGatt.GATT_SUCCESS) {
                         currentGatt.isReady=true;
-                        broadcastDeviceState(ACTION_DEVICE_CONNECTED);
+                        broadcastDeviceState(BleConst.ACTION_DEVICE_CONNECTED);
                         doJob();
                     }else{
                         broadcastGattError(status);
@@ -257,51 +236,65 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
     };
     private ExecutorService syncTaskExecutor = Executors.newSingleThreadExecutor();
 
-    public class BLEServiceBinder extends Binder {
-
-        public void addTask(BleTask task){
-            synchronized (gattSync){
+    void addTask(BleTask task){
+        synchronized (gattSync){
+            if(currentGatt!=null && currentGatt.isReady){
                 taskQueue.add(task);
-                if(currentGatt!=null && currentGatt.isReady){
-                    if(task.isSync()) {
-                        syncTaskExecutor.execute(new Runnable() {
+                if(task.isSync()) {
+                   // BleSyncTask bst = (BleSyncTask)task;
+                    syncTaskExecutor.execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            doJob();
+                        }
+                    });
+                }else{
+                    doJob();
+                }
+
+            }else{
+                while(task.hasNext()){
+                    BleOperation op = task.next();
+                    op.setSucceed(false);
+                }
+                if((!task.isSync())&&(task instanceof BleAsyncTask)){
+                    final BleAsyncTask asyncTask=((BleAsyncTask) task);
+                    final BleTaskCompleteCallback cb =asyncTask.getCallback();
+                    if(cb!=null) {
+                        ((BleAsyncTask) task).callbackHandler().post(new Runnable() {
                             @Override
                             public void run() {
-                                doJob();
+                                    cb.onTaskComplete(asyncTask);
                             }
                         });
-                    }else{
-                        doJob();
                     }
-
                 }
+                return;
             }
         }
-
-        public void connectDevice(String deviceAddress){
-
-            setScanning(false,false);
-            connect(deviceAddress);
-        }
-        public void disconnectDevice(String deviceAddress){
-            synchronized (gattSync){
-                if(currentGatt!=null && currentGatt.device!=null && currentGatt.device.getAddress().equals(deviceAddress)) {
-                    disconnect();
+        if(task.isSync()) {
+            BleSyncTask bst = (BleSyncTask) task;
+            synchronized (bst.getSyncObject()) {
+                try {
+                    bst.getSyncObject().wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
             }
-
-        }
-        public void scanForDeviceOnce(){
-            setScanning(true,false);
-        }
-        public void scanForDevices(){
-            setScanning(true,true);
-        }
-        public void stopScanForDevice(){
-            setScanning(false,false);
         }
 
     }
+
+    void disconnectDevice(String deviceAddress){
+        synchronized (gattSync){
+            if(currentGatt!=null && currentGatt.device!=null && currentGatt.device.getAddress().equals(deviceAddress)) {
+                disconnect();
+            }
+        }
+    }
+
+
+
     private BluetoothGattCharacteristic findCharacteristic(BluetoothGatt gatt, BleOperation operation){
         BluetoothGattService service =gatt.getService(operation.getService());
         if(service!=null){
@@ -444,51 +437,49 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
     }
 
     private void broadcastScanFinish(){
-        Intent i = new Intent( ACTION_SEARCH_FINISHED);
+        Intent i = new Intent( BleConst.ACTION_SEARCH_FINISHED);
         sendBroadcast(i);
     }
 
     private void broadcastCharacteristicNotification(BleOperation operation){
-        Intent i = new Intent( ACTION_CHARACTERISTIC_NOTIFICATION);
-        i.putExtra(PARAM_CHARACTERISTIC_NOTIFICATION,operation);
+        Intent i = new Intent( BleConst.ACTION_CHARACTERISTIC_NOTIFICATION);
+        i.putExtra(BleConst.PARAM_CHARACTERISTIC_NOTIFICATION,operation);
+        synchronized (gattSync) {
+            BleDeviceInfo info = new BleDeviceInfo(currentGatt.device.getName(),currentGatt.device.getAddress());
+            i.putExtra(BleConst.PARAM_DEVICE_NAME,info );
+        }
+
         sendBroadcast(i);
     }
 
     private void broadcastDeviceState(String action){
         Intent i = new Intent(action);
         synchronized (gattSync) {
-            BleDeviceInfo info = new BleDeviceInfo();
-            info.name=currentGatt.device.getName();
-            info.address=currentGatt.device.getAddress();
-            i.putExtra(PARAM_DEVICE_NAME,info );
+            BleDeviceInfo info = new BleDeviceInfo(currentGatt.device.getName(),currentGatt.device.getAddress());
+            i.putExtra(BleConst.PARAM_DEVICE_NAME,info );
         }
         sendBroadcast(i);
     }
     private void broadcastGattError(int status){
-        Intent i = new Intent(ACTION_DEVICE_ERROR);
+        Intent i = new Intent(BleConst.ACTION_DEVICE_ERROR);
         synchronized (gattSync) {
-            BleDeviceInfo info = new BleDeviceInfo();
-            info.name=currentGatt.device.getName();
-            info.address=currentGatt.device.getAddress();
-            i.putExtra(PARAM_DEVICE_NAME,info );
+            BleDeviceInfo info = new BleDeviceInfo(currentGatt.device.getName(),currentGatt.device.getAddress());
+            i.putExtra(BleConst.PARAM_DEVICE_NAME,info );
         }
-        i.putExtra(PARAM_DEVICE_ERROR,status);
+        i.putExtra(BleConst.PARAM_DEVICE_ERROR,status);
         sendBroadcast(i);
     }
     private void broadcastDeviceList(){
-        Intent i = new Intent(ACTION_DEVICES_FOUND);
+        Intent i = new Intent(BleConst.ACTION_DEVICES_FOUND);
 
         ArrayList<BleDeviceInfo> devices = new ArrayList<>();
         synchronized (gattSync){
             for(BluetoothDeviceWrapper wrapper:foundDevices){
-                BleDeviceInfo info = new BleDeviceInfo();
-                info.name=wrapper.device.getName();
-                info.address=wrapper.device.getAddress();
-
+                BleDeviceInfo info = new BleDeviceInfo(wrapper.device.getName(),wrapper.device.getAddress());
                 devices.add(info);
             }
         }
-        i.putExtra(PARAM_DEVICES_FOUND_LIST,devices.toArray(new BleDeviceInfo[devices.size()]));
+        i.putExtra(BleConst.PARAM_DEVICES_FOUND_LIST,devices.toArray(new BleDeviceInfo[devices.size()]));
         sendBroadcast(i);
     }
 
@@ -521,7 +512,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
         return false;
     }
 
-    private final IBinder mBinder = new BLEServiceBinder();
+    private final IBinder mBinder = new BleBinder(this);
 
 
     public boolean initialize() {

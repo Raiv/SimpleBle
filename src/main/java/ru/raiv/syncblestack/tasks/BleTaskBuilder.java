@@ -55,17 +55,7 @@ public class BleTaskBuilder {
 
     public BleTask build(){
         //BleTask task;
-        boolean isSingle = operations.size()==1;
 
-        if (isSingle){
-            if(isAsync){
-                return new SingleTaskAsync(operations.get(0),callback,callbackHandler);
-
-            }else{
-                return new SingleTaskSync(operations.get(0));
-
-            }
-        }else{
             if(isAsync){
                 return new MultiTaskAsync(operations,callback,callbackHandler);
 
@@ -73,10 +63,6 @@ public class BleTaskBuilder {
                 return new MultiTaskSync(operations);
 
             }
-        }
-
-
-
     }
 
 }

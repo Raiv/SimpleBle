@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">SyncBleStack</string>
+    <string name="error_bluetooth_not_supported">Bluetooth is not supported on this device!</string>
+    <string name="needAllPermissions">You cannot use BLE without all permissions!</string>
 </resources>

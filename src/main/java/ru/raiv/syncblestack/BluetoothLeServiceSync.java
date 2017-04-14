@@ -59,6 +59,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
             boolean notExists = true;
             boolean needUpdate = false;
             synchronized (gattSync) {
+
                 for (BluetoothDeviceWrapper found : foundDevices) {
                     if (device.getAddress().equals(found.device.getAddress())) {
                         if(!found.device.getName().equals(device.getName())){
@@ -473,14 +474,18 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
         Intent i = new Intent(BleConst.ACTION_DEVICES_FOUND);
 
         ArrayList<BleDeviceInfo> devices = new ArrayList<>();
+        //boolean hasDevices = false;
         synchronized (gattSync){
+          //  hasDevices=foundDevices.size()>0;
             for(BluetoothDeviceWrapper wrapper:foundDevices){
                 BleDeviceInfo info = new BleDeviceInfo(wrapper.device.getName(),wrapper.device.getAddress());
                 devices.add(info);
             }
         }
-        i.putExtra(BleConst.PARAM_DEVICES_FOUND_LIST,devices.toArray(new BleDeviceInfo[devices.size()]));
-        sendBroadcast(i);
+        //if(hasDevices) {
+            i.putExtra(BleConst.PARAM_DEVICES_FOUND_LIST, devices.toArray(new BleDeviceInfo[devices.size()]));
+            sendBroadcast(i);
+        //}
     }
 
     @Override

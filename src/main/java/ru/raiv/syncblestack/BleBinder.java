@@ -8,7 +8,7 @@ import ru.raiv.syncblestack.tasks.BleTask;
  * Created by Raiv on 03.03.2017.
  */
 
-public class BleBinder extends Binder {
+public final class BleBinder extends Binder {
     private BluetoothLeServiceSync owner;
     public BleBinder( BluetoothLeServiceSync owner){
         this.owner = owner;

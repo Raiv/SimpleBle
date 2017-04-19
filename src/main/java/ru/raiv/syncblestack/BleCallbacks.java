@@ -14,5 +14,6 @@ public interface BleCallbacks {
     void onDeviceDisconnected(BleDeviceInfo device);
     void onNoDevicesFound();
     void onCharacteristicNotification(BleDeviceInfo device, BleOperation characteristic);
+    void onServiceBind();
 
 }

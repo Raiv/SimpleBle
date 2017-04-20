@@ -75,20 +75,20 @@ public class BleTaskBuilder {
 
     /*write*/
 
-    public BleTaskBuilder addWriteOperation(@NonNull UUID writeService,@NonNull UUID writeCharacteristic,@NonNull byte[] writeValue){
+    public BleTaskBuilder addWriteOperation(@NonNull UUID writeService,@NonNull UUID writeCharacteristic, byte[] writeValue){
         return addOperation(BleOperationFactory.getWriteOperation(writeService,writeCharacteristic,writeValue));
     }
 
-    public  BleTaskBuilder addWriteOperation(@NonNull UUID writeCharacteristic,@NonNull byte[] writeValue){
+    public  BleTaskBuilder addWriteOperation(@NonNull UUID writeCharacteristic, byte[] writeValue){
         return addOperation(operationFactory.getWriteOperation(writeCharacteristic,writeValue));
     }
 
 
-    public  BleTaskBuilder addWriteOperation(@NonNull String writeService,@NonNull String writeCharacteristic,@NonNull byte[] writeValue){
+    public  BleTaskBuilder addWriteOperation(@NonNull String writeService,@NonNull String writeCharacteristic, byte[] writeValue){
         return addOperation(BleOperationFactory.getWriteOperation(writeService,writeCharacteristic,writeValue));
     }
 
-    public  BleTaskBuilder addWriteOperation(@NonNull String writeCharacteristic,@NonNull byte[] writeValue){
+    public  BleTaskBuilder addWriteOperation(@NonNull String writeCharacteristic, byte[] writeValue){
         return addOperation(operationFactory.getWriteOperation(writeCharacteristic,writeValue));
     }
 

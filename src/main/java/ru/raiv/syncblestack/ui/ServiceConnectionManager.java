@@ -20,8 +20,10 @@ import android.widget.Toast;
 import ru.raiv.syncblestack.BleBinder;
 import ru.raiv.syncblestack.BleCallbacks;
 import ru.raiv.syncblestack.BleConst;
+import ru.raiv.syncblestack.BleDeviceInfo;
 import ru.raiv.syncblestack.BluetoothLeServiceSync;
 import ru.raiv.syncblestack.R;
+import ru.raiv.syncblestack.tasks.BleTask;
 
 //import android.app.Fragment;
 
@@ -37,8 +39,7 @@ public class ServiceConnectionManager {
     private static final int REQUEST_ENABLE_GPS = 1;
 
     private static final int TYPE_BLE_PERMISSION = 128;
-
-
+    private final BinderWrapper binderWrapper= new BinderWrapper();
 
 
     private BleBinder binder=null;
@@ -54,6 +55,54 @@ public class ServiceConnectionManager {
 
     private BleCallbacks callbacks;
 
+//  class to incapsulate binder null checks
+    public final class BinderWrapper{
+
+        private BinderWrapper(){};
+
+        public boolean addTask(BleTask task){
+            if(binder!=null){
+                binder.addTask(task);
+                return true;
+            }
+            return false;
+        }
+        public boolean connectDevice(BleDeviceInfo device){
+            if(binder!=null){
+                binder.connectDevice(device);
+                return true;
+            }
+            return false;
+        }
+        public boolean disconnectDevice(BleDeviceInfo device){
+            if(binder!=null){
+                binder.disconnectDevice(device);
+                return true;
+            }
+            return false;
+        }
+        public boolean scanForDeviceOnce(){
+            if(binder!=null){
+                binder.scanForDeviceOnce();
+                return true;
+            }
+            return false;
+        }
+        public boolean scanForDevices(){
+            if(binder!=null){
+                binder.scanForDevices();
+                return true;
+            }
+            return false;
+        }
+        public boolean stopScanForDevice(){
+            if(binder!=null){
+                binder.stopScanForDevice();
+                return true;
+            }
+            return false;
+        }
+    }
 
 
 
@@ -63,12 +112,14 @@ public class ServiceConnectionManager {
         this.context=fragment.getActivity();
         frag = fragment;
         this.receiver=receiver;
+
     }
 
     public ServiceConnectionManager (@NonNull android.support.v4.app.Fragment fragment,@NonNull BroadcastReceiver receiver) {
         this.context = fragment.getActivity();
         fragv4=fragment;
         this.receiver = receiver;
+
     }
 
     public ServiceConnectionManager (@NonNull Activity context,@NonNull BroadcastReceiver receiver){
@@ -81,24 +132,29 @@ public class ServiceConnectionManager {
         this.context=fragment.getActivity();
         frag = fragment;
         this.receiver=new BleDefaultBroadcastReceiver(callbacks);
+        this.callbacks=callbacks;
     }
 
     public ServiceConnectionManager (@NonNull android.support.v4.app.Fragment fragment,@NonNull BleCallbacks callbacks) {
         this.context = fragment.getActivity();
         fragv4=fragment;
         this.receiver =new BleDefaultBroadcastReceiver(callbacks);
+        this.callbacks=callbacks;
     }
 
     public ServiceConnectionManager (@NonNull Activity context,@NonNull BleCallbacks callbacks){
         this.context=context;
         this.receiver=new BleDefaultBroadcastReceiver(callbacks);
+        this.callbacks=callbacks;
     }
 
 
     public BleBinder getBinder(){
         return binder;
     }
-
+    public BinderWrapper getWrapper(){
+        return binderWrapper;
+    }
     private void rebindService(){
        // if(needBind) {
            // showWaitDialog(getString(R.string.bindingService));
@@ -118,7 +174,9 @@ public class ServiceConnectionManager {
             if(service!=null && (service instanceof BleBinder)){
                 binder = (BleBinder) service;
                 binding=false;
-                //hideWaitDialog();
+                if(callbacks!=null){
+                    callbacks.onServiceBind();
+                }
             }else {
                 rebindService();
             }

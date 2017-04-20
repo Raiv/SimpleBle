@@ -16,6 +16,23 @@ public class BleDeviceInfo implements Serializable {
     private String name;
     private String address;
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof BleDeviceInfo)) return false;
+
+        BleDeviceInfo that = (BleDeviceInfo) o;
+
+        if (name != null ? !name.equals(that.name) : that.name != null) return false;
+        return address != null ? address.equals(that.address) : that.address == null;
+
+    }
+
+    @Override
+    public int hashCode() {
+        return address != null ? address.hashCode() : 0;
+    }
+
     public String getName() {
         return name;
     }
@@ -31,4 +48,5 @@ public class BleDeviceInfo implements Serializable {
     public void setAddress(String address) {
         this.address = address;
     }
+
 }

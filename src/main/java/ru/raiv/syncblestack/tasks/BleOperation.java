@@ -22,45 +22,12 @@ public class BleOperation implements Parcelable{
     private UUID characteristic;
     private BleOperationType opType;
 
-
-    public BleOperation(@NonNull UUID characteristic, @Nullable byte[] value, @NonNull BleOperationType opType){
-        if(defaultService==null){
-            throw new RuntimeException("BleOperation: no default service set!");
-        }
-        init(defaultService,characteristic,value,opType);
-    }
-    public BleOperation(@NonNull UUID characteristic, @NonNull BleOperationType opType){
-        if(defaultService==null){
-            throw new RuntimeException("BleOperation: no default service set!");
-        }
-        init(defaultService,characteristic,null,opType);
-    }
-    public BleOperation(@NonNull String characteristic, @Nullable byte[] value, @NonNull BleOperationType opType){
-        if(defaultService==null){
-            throw new RuntimeException("BleOperation: no default service set!");
-        }
-        init(defaultService,UUID.fromString(characteristic),value,opType);
-    }
-    public BleOperation(@NonNull String characteristic, @NonNull BleOperationType opType){
-        if(defaultService==null){
-            throw new RuntimeException("BleOperation: no default service set!");
-        }
-        init(defaultService,UUID.fromString(characteristic),null,opType);
-    }
-
-
-
-    public BleOperation(@NonNull UUID service, @NonNull UUID characteristic, @Nullable byte[] value, @NonNull BleOperationType opType){
+    BleOperation(@NonNull UUID service, @NonNull UUID characteristic, @Nullable byte[] value, @NonNull BleOperationType opType){
         init(service,characteristic,value,opType);
     }
-    public BleOperation(@NonNull UUID service, @NonNull UUID characteristic, @NonNull BleOperationType opType){
-        init(service,characteristic,null,opType);
-    }
-    public BleOperation(@NonNull String service, @NonNull String characteristic, @Nullable byte[] value, @NonNull BleOperationType opType){
+
+    BleOperation(@NonNull String service, @NonNull String characteristic, @Nullable byte[] value, @NonNull BleOperationType opType){
         init(UUID.fromString(service),UUID.fromString(characteristic),value,opType);
-    }
-    public BleOperation(@NonNull String service, @NonNull String characteristic, @NonNull BleOperationType opType){
-        init(UUID.fromString(service),UUID.fromString(characteristic),null,opType);
     }
 
 
@@ -109,46 +76,46 @@ public class BleOperation implements Parcelable{
 
 
 
-    private static volatile transient UUID defaultService = null;
+  /*  private static volatile transient UUID defaultService = null;
     public static void setDefaultService(@NonNull UUID service){
         defaultService=service;
     }
     public static void setDefaultService(@NonNull String service){
         defaultService=UUID.fromString(service);
     }
-
+*/
     public UUID getCharacteristic() {
         return characteristic;
     }
-
+/*
     public void setCharacteristic(UUID characteristic) {
         this.characteristic = characteristic;
     }
     public void setCharacteristic(String characteristic) {
         this.characteristic = UUID.fromString(characteristic);
     }
-
+*/
     public UUID getService() {
         return service;
     }
-
+/*
     public void setService(UUID service) {
         this.service = service;
     }
     public void setService(String service) {
         this.service =UUID.fromString(service);
     }
-
+*/
 
 
     public BleOperationType getOpType() {
         return opType;
     }
-
+/*
     public void setOpType(BleOperationType opType) {
         this.opType = opType;
     }
-
+*/
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -166,8 +133,8 @@ public class BleOperation implements Parcelable{
 
     @Override
     public int hashCode() {
+
         int result = Arrays.hashCode(value);
-        result = 31 * result + (succeed ? 1 : 0);
         result = 31 * result + service.hashCode();
         result = 31 * result + characteristic.hashCode();
         result = 31 * result + opType.hashCode();

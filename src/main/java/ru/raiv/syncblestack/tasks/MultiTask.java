@@ -1,7 +1,9 @@
 package ru.raiv.syncblestack.tasks;
 
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -10,36 +12,41 @@ import java.util.UUID;
 
 class MultiTask implements BleTask{
 
-    ArrayList<BleOperation> operations =new ArrayList<>();
-    int innerIndex = -1;
-
-    MultiTask(Collection<BleOperation> tasks){
-        operations.addAll(tasks);
+    LinkedHashMap<UUID,BleOperation> operations =new LinkedHashMap<>();
+    //int innerIndex = -1;
+    Iterator<Map.Entry<UUID,BleOperation>> current;
+    BleOperation currentOp = null;
+    MultiTask(Collection<BleOperation> tasks)
+    {
+        for(BleOperation op:tasks) {
+            operations.put(op.getCharacteristic(), op);
+        }
+        reset();
     }
 
 
     public synchronized boolean hasNext(){
 
-            return innerIndex< operations.size()-1;
+            return current.hasNext();
 
     };
 
     public synchronized BleOperation next(){
+        if(current.hasNext()){
+            currentOp= current.next().getValue();
 
-
-                if(innerIndex< operations.size()-1) {
-                    innerIndex++;
-                    return operations.get(innerIndex);
-                }
-
-
-
-        return null;
+        }else{
+            currentOp=null;
+        }
+        return currentOp;
     }
 
     public synchronized void reset(){
 
-            innerIndex=0;
+        current=operations.entrySet().iterator();
+        currentOp=null;
+        //switch to first element
+
 
     }
 
@@ -51,21 +58,12 @@ class MultiTask implements BleTask{
     @Override
     public synchronized BleOperation current() {
 
-            if(innerIndex>=0){
-                return operations.get(innerIndex);
-            }
-
-        return null;
+            return currentOp;
     }
 
     @Override
     public BleOperation getByName(UUID name) {
-       for(BleOperation current: operations){
-           if(current.getCharacteristic().equals(name)){
-               return current;
-           }
-       }
-       return null;
+       return operations.get(name);
     }
 
     @Override
@@ -75,12 +73,12 @@ class MultiTask implements BleTask{
 
     @Override
     public synchronized boolean hasCurrent() {
-        return innerIndex>=0;
+        return currentOp!=null;
     }
 
     @Override
     public boolean allSucceed() {
-        for(BleOperation op:operations){
+        for(BleOperation op:operations.values()){
             if(!op.isSucceed()){
                 return false;
             }

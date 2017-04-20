@@ -7,7 +7,7 @@ package ru.raiv.syncblestack.tasks;
 public enum BleOperationType {
     READ,
     WRITE,
-    WRITE_NO_RESPONCE,
+    WRITE_NO_RESPONSE,
     CHECK,
     LISTEN;
 }

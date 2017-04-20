@@ -16,6 +16,7 @@ import android.content.Intent;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.support.annotation.Nullable;
 import android.util.Log;
 
 import java.util.ArrayList;
@@ -29,7 +30,7 @@ import java.util.concurrent.Executors;
 
 import ru.raiv.syncblestack.tasks.BleAsyncTask;
 import ru.raiv.syncblestack.tasks.BleOperation;
-import ru.raiv.syncblestack.tasks.BleOperationType;
+import ru.raiv.syncblestack.tasks.BleOperationFactory;
 import ru.raiv.syncblestack.tasks.BleSyncTask;
 import ru.raiv.syncblestack.tasks.BleTask;
 import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
@@ -62,7 +63,8 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
 
                 for (BluetoothDeviceWrapper found : foundDevices) {
                     if (device.getAddress().equals(found.device.getAddress())) {
-                        if(!found.device.getName().equals(device.getName())){
+                        String devname =found.device.getName();
+                        if((devname==null&&device.getName()!=null)||!devname.equals(device.getName())){
                             found.device=device;
                         }
                         if (found.scanIteration < scanIteration) {
@@ -214,7 +216,8 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
             if(gatt.equals(currentGatt.gatt)){
-                BleOperation operation = new BleOperation(characteristic.getService().getUuid(),characteristic.getUuid(),characteristic.getValue(), BleOperationType.LISTEN);
+                BleOperation operation = BleOperationFactory.getListenOperation(characteristic.getService().getUuid(),characteristic.getUuid());
+                operation.setValue(characteristic.getValue());
                 operation.setSucceed(true);
                 broadcastCharacteristicNotification(operation);
             }
@@ -296,6 +299,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
 
 
 
+    @Nullable
     private BluetoothGattCharacteristic findCharacteristic(BluetoothGatt gatt, BleOperation operation){
         BluetoothGattService service =gatt.getService(operation.getService());
         if(service!=null){
@@ -404,7 +408,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                         case READ:
                             currentGatt.gatt.readCharacteristic(characteristic);
                             break;
-                        case WRITE_NO_RESPONCE:
+                        case WRITE_NO_RESPONSE:
                             characteristic.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE);
 
                         case WRITE:
@@ -416,14 +420,11 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                             check=true;
                             break;
                         case LISTEN:
-                            byte[] data = operation.getValue();
                             currentGatt.gatt.setCharacteristicNotification(characteristic,true);
                             UUID uuid = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
                             BluetoothGattDescriptor descriptor = characteristic.getDescriptor(uuid);
                             descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
                             currentGatt.gatt.writeDescriptor(descriptor);
-                            check=true;
-                            operation.setSucceed(true);
                             break;
                     }
 

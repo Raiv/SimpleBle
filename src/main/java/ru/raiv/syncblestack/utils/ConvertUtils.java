@@ -63,14 +63,14 @@ public class ConvertUtils {
     }
 
     // big endian
-    public static byte[] fromShort(int data){
+    public static byte[] fromShortBe(int data){
         byte[] result = new byte[2];
         result[0]=(byte)(data&0xff);
         result[1]=(byte) ((data >> 8) & 0xff);
         return result;
     }
 
-    public static int toShort(byte[] data){
+    public static int toShortBe(byte[] data){
         Log.d(TAG,"toShort: "+bytesToHex(data));
         if(data==null ||data.length<2){
             return -1;
@@ -79,8 +79,68 @@ public class ConvertUtils {
         result+=((data[1]<<8)&0xff00);
         return result;
     }
+    public static byte[] fromShortLe(int data){
+        byte[] result = new byte[2];
+        result[1]=(byte)(data&0xff);
+        result[0]=(byte) ((data >> 8) & 0xff);
+        return result;
+    }
+
+    public static int toShortLe(byte[] data){
+        Log.d(TAG,"toShort: "+bytesToHex(data));
+        if(data==null ||data.length<2){
+            return -1;
+        }
+        int result = (data[1]&0xff);
+        result+=((data[0]<<8)&0xff00);
+        return result;
+    }
+
+    public static byte[] fromIntBe(int data){
+        byte[] result = new byte[4];
+        result[0]=(byte)(data&0xff);
+        result[1]=(byte) ((data >> 8) & 0xff);
+        result[2]=(byte) ((data >> 16) & 0xff);
+        result[3]=(byte) ((data >> 24) & 0xff);
+        return result;
+    }
+
+    public static int toIntBe(byte[] data){
+        Log.d(TAG,"toInt: "+bytesToHex(data));
+        if(data==null ||data.length<4){
+            return -1;
+        }
+        int result = (data[0]&0xff);
+        result+=((data[1]<<8)&0xff00);
+        result+=((data[2]<<16)&0xff0000);
+        result+=((data[3]<<24)&0xff000000);
+
+        return result;
+    }
+
+    public static byte[] fromIntLe(int data){
+        byte[] result = new byte[4];
+        result[3]=(byte)(data&0xff);
+        result[2]=(byte) ((data >> 8) & 0xff);
+        result[1]=(byte) ((data >> 16) & 0xff);
+        result[0]=(byte) ((data >> 24) & 0xff);
+        return result;
+    }
+
+    public static int toIntLe(byte[] data){
+        Log.d(TAG,"toInt: "+bytesToHex(data));
+        if(data==null ||data.length<4){
+            return -1;
+        }
+        int result = (data[3]&0xff);
+        result+=((data[2]<<8)&0xff00);
+        result+=((data[1]<<16)&0xff0000);
+        result+=((data[0]<<24)&0xff000000);
+
+        return result;
+    }
     // big endian
-    public static byte[] fromFloat(float data){
+    public static byte[] fromFloatLe(float data){
         int bits = Float.floatToIntBits(data);
         byte[] bytes = new byte[4];
         bytes[3] = (byte)(bits & 0xff);
@@ -90,7 +150,7 @@ public class ConvertUtils {
         return bytes;
     }
 
-    public static float toFloat(byte[] data){
+    public static float toFloatLe(byte[] data){
         Log.d(TAG,"toFloat: "+bytesToHex(data));
         if(data==null ||data.length<4){
             return -1;
@@ -102,7 +162,23 @@ public class ConvertUtils {
         return ByteBuffer.wrap(reverted).getFloat();
 
     }
+    public static byte[] fromFloatBe(float data){
+        int bits = Float.floatToIntBits(data);
+        byte[] bytes = new byte[4];
+        bytes[0] = (byte)(bits & 0xff);
+        bytes[1] = (byte)((bits >> 8) & 0xff);
+        bytes[2] = (byte)((bits >> 16) & 0xff);
+        bytes[3] = (byte)((bits >> 24) & 0xff);
+        return bytes;
+    }
 
+    public static float toFloatBe(byte[] data){
+        Log.d(TAG,"toFloat: "+bytesToHex(data));
+        if(data==null ||data.length<4){
+            return -1;
+        }
+        return ByteBuffer.wrap(data).getFloat();
+    }
     public static byte[] fromByte(int data)
     {
         byte [] bData = new byte[1];

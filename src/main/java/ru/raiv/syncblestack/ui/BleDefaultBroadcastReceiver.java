@@ -48,7 +48,7 @@ public class BleDefaultBroadcastReceiver extends BroadcastReceiver {
         }
         if (BleConst.ACTION_CHARACTERISTIC_NOTIFICATION.equals(action)){
             BleDeviceInfo bdi = (BleDeviceInfo) intent.getSerializableExtra(BleConst.PARAM_DEVICE_NAME);
-            BleOperation operation =(BleOperation)intent.getSerializableExtra(BleConst.PARAM_CHARACTERISTIC_NOTIFICATION);
+            BleOperation operation =(BleOperation)intent.getParcelableExtra(BleConst.PARAM_CHARACTERISTIC_NOTIFICATION);
             callbacks.onCharacteristicNotification(bdi,operation);
             return;
         }

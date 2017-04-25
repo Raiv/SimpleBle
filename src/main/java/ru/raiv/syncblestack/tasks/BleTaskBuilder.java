@@ -172,7 +172,7 @@ public class BleTaskBuilder {
         //BleTask task;
 
             if(isAsync){
-                return new MultiTaskAsync(operations,callback,callbackHandler);
+                return new MultiTaskAsync(operations,callback,callbackHandler!=null?callbackHandler:new Handler());
 
             }else{
                 return new MultiTaskSync(operations);

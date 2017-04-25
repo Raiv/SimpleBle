@@ -1,6 +1,7 @@
 package ru.raiv.syncblestack.tasks;
 
 import android.os.Handler;
+import android.support.annotation.NonNull;
 
 import java.util.Collection;
 
@@ -10,10 +11,10 @@ import java.util.Collection;
 
 class MultiTaskAsync extends MultiTask implements BleAsyncTask {
 
-    private BleTaskCompleteCallback callback;
-    private Handler callbackHandler;
+    private final BleTaskCompleteCallback callback;
+    private final Handler callbackHandler;
 
-    MultiTaskAsync(Collection<BleOperation> tasks, BleTaskCompleteCallback callback, Handler callbackHandler) {
+    MultiTaskAsync(Collection<BleOperation> tasks, BleTaskCompleteCallback callback,@NonNull Handler callbackHandler) {
         super(tasks);
         this.callbackHandler=callbackHandler;
         this.callback=callback;
@@ -29,11 +30,4 @@ class MultiTaskAsync extends MultiTask implements BleAsyncTask {
         return callbackHandler;
     }
 
-    public void setCallbackHandler(Handler callbackHandler) {
-        this.callbackHandler = callbackHandler;
-    }
-
-    public void setCallback(BleTaskCompleteCallback callback) {
-        this.callback = callback;
-    }
 }

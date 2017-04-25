@@ -24,7 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
 import java.util.UUID;
-import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -46,9 +46,10 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
 
 
     private static class BluetoothDeviceWrapper {
-        public BluetoothGatt gatt;
-        public long scanIteration = 0;
-        public boolean isReady = false;
+        BluetoothGatt gatt;
+        long scanIteration = 0;
+        boolean isReady = false;
+        boolean autoReconnect = true;// default behaviour;
         BluetoothDevice device = null;
     };
 
@@ -57,39 +58,41 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
 
         @Override
         public void onLeScan(final BluetoothDevice device, int rssi, byte[] scanRecord) {
-            boolean notExists = true;
-            boolean needUpdate = false;
-            synchronized (gattSync) {
-                for (BluetoothDeviceWrapper found : foundDevices) {
-                    if (device.getAddress().equals(found.device.getAddress())) {
-                        String devname =found.device.getName();
-                        if((devname==null&&device.getName()!=null)||!devname.equals(device.getName())){
-                            found.device=device;
-                        }
-                        if (found.scanIteration < scanIteration) {
-                            found.scanIteration = scanIteration;
-                            needUpdate = true;
-                        }
-                        notExists = false;
+            if(isScanning()) {// on Zuk z2 scan does not stops immediately?!?
+                boolean notExists = true;
+                boolean needUpdate = false;
+                synchronized (gattSync) {
+                    for (BluetoothDeviceWrapper found : foundDevices) {
+                        if (device.getAddress().equals(found.device.getAddress())) {
+                            String devname = found.device.getName();
+                            if ((devname == null && device.getName() != null) || !devname.equals(device.getName())) {
+                                found.device = device;
+                            }
+                            if (found.scanIteration < scanIteration) {
+                                found.scanIteration = scanIteration;
+                                needUpdate = true;
+                            }
+                            notExists = false;
 
-                        break;
+                            break;
+                        }
                     }
                 }
-            }
-            if (notExists) {
-                needUpdate = true;
-                BluetoothDeviceWrapper wrapper = new BluetoothDeviceWrapper();
-                wrapper.device = device;
-                wrapper.scanIteration = scanIteration;
-                synchronized (gattSync) {
-                    foundDevices.add(wrapper);
+                if (notExists) {
+                    needUpdate = true;
+                    BluetoothDeviceWrapper wrapper = new BluetoothDeviceWrapper();
+                    wrapper.device = device;
+                    wrapper.scanIteration = scanIteration;
+                    synchronized (gattSync) {
+                        foundDevices.add(wrapper);
+                    }
+
+                    Log.d(TAG, myNum() + "Le device added to processing");
+
                 }
-
-                Log.d(TAG,myNum()+ "Le device added to processing");
-
-            }
-            if (needUpdate) {
-                broadcastDeviceList();
+                if (needUpdate) {
+                    broadcastDeviceList();
+                }
             }
         }
     };
@@ -98,16 +101,16 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
     private static volatile int instanceNumCount =0;
     private volatile int instanceNum =0;
 
-    private BluetoothManager mBluetoothManager;
-    private BluetoothAdapter mBluetoothAdapter;
+    private volatile BluetoothManager mBluetoothManager;
+    private volatile BluetoothAdapter mBluetoothAdapter;
     private static final long SCAN_PERIOD = 30000;
     private volatile boolean mScanning = false;
     private volatile boolean continousScanning = true;
     private Handler mHandler;
-    private volatile Queue<BleTask> taskQueue = new ArrayBlockingQueue<>(128,false);
+    private final Queue<BleTask> taskQueue = new ConcurrentLinkedQueue<BleTask>();
 
     private final Object gattSync=new Object();
-    BluetoothDeviceWrapper currentGatt=null;
+    private volatile BluetoothDeviceWrapper currentGatt=null;
     private final List<BluetoothDeviceWrapper> foundDevices=Collections.synchronizedList(new ArrayList<BluetoothDeviceWrapper>());
     private final List<BluetoothDeviceWrapper> prevFoundDevices=Collections.synchronizedList(new ArrayList<BluetoothDeviceWrapper>());
     private volatile LeScanCallback currentScan = null;
@@ -159,7 +162,11 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
             } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
                 synchronized (gattSync) {
                     if (gatt.equals(currentGatt.gatt)) {
+                        if(!currentGatt.autoReconnect) {
+                            gatt.close();
+                        }
                         currentGatt.gatt = null;
+                        currentGatt.isReady=false;
                         broadcastDeviceState(BleConst.ACTION_DEVICE_DISCONNECTED);
                         if (inJob){
                             finishTask();
@@ -189,6 +196,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
 
         @Override
         public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+            Log.d(TAG,myNum()+ characteristic.getUuid().toString()+" onCharacteristicRead status: " + status);
             if(gatt.equals(currentGatt.gatt)){
                 if(status == BluetoothGatt.GATT_SUCCESS) {
                     finishRW(characteristic);
@@ -200,7 +208,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
         }
 
         public void onCharacteristicWrite(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
-            Log.d(TAG,myNum()+ "------------- onCharacteristicWrite status: " + status);
+            Log.d(TAG,myNum()+ characteristic.getUuid().toString()+" onCharacteristicWrite status: " + status);
             if(gatt.equals(currentGatt.gatt)){
                 if(status == BluetoothGatt.GATT_SUCCESS) {
                     finishRW(characteristic);
@@ -214,6 +222,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
 
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+            Log.d(TAG,myNum()+ characteristic.getUuid().toString()+" onCharacteristicChange");
             if(gatt.equals(currentGatt.gatt)){
                 BleOperation operation = BleOperationFactory.getListenOperation(characteristic.getService().getUuid(),characteristic.getUuid());
                 operation.setValue(characteristic.getValue());
@@ -241,7 +250,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
 
     void addTask(BleTask task){
         synchronized (gattSync){
-            if(currentGatt!=null && currentGatt.isReady){
+            if(currentGatt!=null && currentGatt.gatt!=null && currentGatt.isReady){
                 taskQueue.add(task);
                 if(task.isSync()) {
                    // BleSyncTask bst = (BleSyncTask)task;
@@ -291,7 +300,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
     void disconnectDevice(String deviceAddress){
         synchronized (gattSync){
             if(currentGatt!=null && currentGatt.device!=null && currentGatt.device.getAddress().equals(deviceAddress)) {
-                disconnect();
+                close();
             }
         }
     }
@@ -536,11 +545,15 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
         return true;
     }
 
-    public boolean connect(final String address) {
+    public boolean connect(final String address, boolean reconnect) {
         if (mBluetoothAdapter == null || address == null) {
             Log.w(TAG,myNum()+ "BluetoothAdapter not initialized or unspecified address.");
             return false;
         }
+        if(currentGatt!= null&&currentGatt.gatt!=null&&currentGatt.device!=null &&currentGatt.device.getAddress().equals(address)){
+            return false;
+        }
+
 
         BluetoothDevice device =mBluetoothAdapter.getRemoteDevice(address);
         //if(device==null){
@@ -548,7 +561,8 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                  for(BluetoothDeviceWrapper bdw: foundDevices){
                      if(bdw.device!=null&& bdw.device.getAddress().equals(address)){
                          currentGatt=bdw;
-                         device =bdw.device;
+                         device=bdw.device;
+                         currentGatt.autoReconnect=reconnect;
                          break;
                      }
                  }
@@ -560,6 +574,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                 if(bdw.device!=null&& bdw.device.getAddress().equals(address)){
                     currentGatt=bdw;
                     device =bdw.device;
+                    currentGatt.autoReconnect=reconnect;
                     break;
                 }
             }
@@ -596,8 +611,23 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
         synchronized (gattSync) {
             if (currentGatt!=null &&currentGatt.gatt != null) {
                 currentGatt.gatt.disconnect();
-                currentGatt.gatt.close();
+               // fix for https://issuetracker.google.com/37057260
+                final BluetoothGatt gattToClose=currentGatt.gatt;
+                syncTaskExecutor.execute(
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                try {
+                                    Thread.sleep(100);
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
+                                gattToClose.close();
+                            }
+                        }
+                );
                 currentGatt.gatt = null;
+                currentGatt.isReady=false;
             }
         }
     }
@@ -631,7 +661,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
     public void reconnect(){
         synchronized(gattSync) {
             if (currentGatt != null && currentGatt.device != null && currentGatt.gatt == null) {
-                connect(currentGatt.device.getAddress());
+                connect(currentGatt.device.getAddress(),currentGatt.autoReconnect);
             }
         }
     }

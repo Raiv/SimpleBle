@@ -18,10 +18,10 @@ public final class BleBinder extends Binder {
         owner.addTask(task);
     }
 
-    public void connectDevice(BleDeviceInfo device){
+    public void connectDevice(BleDeviceInfo device,boolean autoReconnect){
         if(device!=null) {
             owner.setScanning(false, false);
-            owner.connect(device.getAddress());
+            owner.connect(device.getAddress(),autoReconnect);
         }
     }
     public void disconnectDevice(BleDeviceInfo device){

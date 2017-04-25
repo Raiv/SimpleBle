@@ -67,9 +67,9 @@ public class ServiceConnectionManager {
             }
             return false;
         }
-        public boolean connectDevice(BleDeviceInfo device){
+        public boolean connectDevice(BleDeviceInfo device,boolean autoReconnect){
             if(binder!=null){
-                binder.connectDevice(device);
+                binder.connectDevice(device,autoReconnect);
                 return true;
             }
             return false;

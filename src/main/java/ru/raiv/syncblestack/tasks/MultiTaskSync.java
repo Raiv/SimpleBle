@@ -10,10 +10,10 @@ class MultiTaskSync extends MultiTask implements BleSyncTask {
     MultiTaskSync(Collection<BleOperation> tasks) {
         super(tasks);
     }
-
+    private final Object sync=new Object();
     @Override
     public Object getSyncObject() {
-        return this;
+        return sync;
     }
 
     @Override

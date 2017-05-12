@@ -1,12 +1,13 @@
 package ru.raiv.syncblestack;
 
-import java.io.Serializable;
+import android.os.Parcel;
+import android.os.Parcelable;
 
 /**
  * Created by Raiv on 10.01.2017.
  */
 
-public class BleDeviceInfo implements Serializable {
+public class BleDeviceInfo implements Parcelable {
 
     public BleDeviceInfo(String name,String address){
         this.name=name;
@@ -15,6 +16,23 @@ public class BleDeviceInfo implements Serializable {
 
     private String name;
     private String address;
+
+    protected BleDeviceInfo(Parcel in) {
+        name = in.readString();
+        address = in.readString();
+    }
+
+    public static final Creator<BleDeviceInfo> CREATOR = new Creator<BleDeviceInfo>() {
+        @Override
+        public BleDeviceInfo createFromParcel(Parcel in) {
+            return new BleDeviceInfo(in);
+        }
+
+        @Override
+        public BleDeviceInfo[] newArray(int size) {
+            return new BleDeviceInfo[size];
+        }
+    };
 
     @Override
     public boolean equals(Object o) {
@@ -49,4 +67,15 @@ public class BleDeviceInfo implements Serializable {
         this.address = address;
     }
 
+    @Override
+    public int describeContents() {
+        return 0;
+    }
+
+    @Override
+    public void writeToParcel(Parcel dest, int flags) {
+
+        dest.writeString(name);
+        dest.writeString(address);
+    }
 }

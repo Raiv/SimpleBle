@@ -65,7 +65,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                     for (BluetoothDeviceWrapper found : foundDevices) {
                         if (device.getAddress().equals(found.device.getAddress())) {
                             String devname = found.device.getName();
-                            if ((devname == null && device.getName() != null) || !devname.equals(device.getName())) {
+                            if ((devname == null) || !devname.equals(device.getName())) {
                                 found.device = device;
                             }
                             if (found.scanIteration < scanIteration) {

@@ -58,7 +58,7 @@ public class BleDefaultBroadcastReceiver extends BroadcastReceiver {
         if (BleConst.ACTION_DEVICES_FOUND.equals(action)){
             Parcelable[] data =  intent.getParcelableArrayExtra(BleConst.PARAM_DEVICES_FOUND_LIST);
             BleDeviceInfo[] bdi;
-            if(data ==null ||data.length>0){// error in galxy s5
+            if(data !=null && data.length>0){// error in galxy s5
                 ArrayList<BleDeviceInfo> bdiArray = new ArrayList<>();
                 for(Parcelable p: data){
                     bdiArray.add((BleDeviceInfo)p);

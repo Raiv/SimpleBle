@@ -21,6 +21,11 @@ public class BleDeviceInfo implements Parcelable {
         name = in.readString();
         address = in.readString();
     }
+    @Override
+    public String toString(){
+        return name+" ("+address+")";
+    }
+
 
     public static final Creator<BleDeviceInfo> CREATOR = new Creator<BleDeviceInfo>() {
         @Override

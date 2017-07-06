@@ -19,6 +19,7 @@ import android.os.Looper;
 import android.support.annotation.Nullable;
 import android.util.Log;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -46,11 +47,11 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
 
 
     private static class BluetoothDeviceWrapper {
-        BluetoothGatt gatt;
-        long scanIteration = 0;
-        boolean isReady = false;
-        boolean autoReconnect = true;// default behaviour;
-        BluetoothDevice device = null;
+        volatile BluetoothGatt gatt;
+        volatile long scanIteration = 0;
+        volatile boolean isReady = false;
+        volatile boolean autoReconnect = true;// default behaviour;
+        volatile BluetoothDevice device = null;
     };
 
     // Device scan callback.
@@ -156,7 +157,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                             currentGatt.gatt = gatt;
                             currentGatt.gatt.discoverServices();
                         }else{
-                            broadcastGattError(status);
+                            broadcastGattError(gatt,status);
                         }
                     }
                 }
@@ -165,6 +166,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                     if (gatt.equals(currentGatt.gatt)) {
                         if(!currentGatt.autoReconnect) {
                             gatt.close();
+                            refreshDeviceCache(gatt);
                         }
                         currentGatt.gatt = null;
                         currentGatt.isReady=false;
@@ -187,7 +189,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                         broadcastDeviceState(BleConst.ACTION_DEVICE_CONNECTED);
                         doJob();
                     }else{
-                        broadcastGattError(status);
+                        broadcastGattError(gatt,status);
                     }
                 }else{
                   //  broadcastDeviceState(ACTION_DEVICE_CONNECTED);
@@ -202,7 +204,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                 if(status == BluetoothGatt.GATT_SUCCESS) {
                     finishRW(characteristic);
                 }else{
-                    broadcastGattError(status);
+                    broadcastGattError(gatt,status);
                     finishTask();
                 }
             }
@@ -214,7 +216,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                 if(status == BluetoothGatt.GATT_SUCCESS) {
                     finishRW(characteristic);
                 }else{
-                    broadcastGattError(status);
+                    broadcastGattError(gatt,status);
                     finishTask();
                 }
             }
@@ -241,14 +243,14 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     finishNotification();
                 } else {
-                    broadcastGattError(status);
+                    broadcastGattError(gatt,status);
                     finishTask();
                 }
             }
         }
     };
     private ExecutorService syncTaskExecutor = Executors.newSingleThreadExecutor();
-
+    private ExecutorService disconnectExecutor = Executors.newSingleThreadExecutor();
     void addTask(BleTask task){
         synchronized (gattSync){
             if(currentGatt!=null && currentGatt.gatt!=null && currentGatt.isReady){
@@ -404,7 +406,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
             boolean check = false;
             synchronized (gattSync) {
                 task = taskQueue.peek();
-                if (currentGatt.gatt != null && task != null && task.hasNext()) {
+                if (currentGatt.gatt != null && currentGatt.isReady && task != null && task.hasNext()) {
                     BleOperation operation = task.next();
                     BluetoothGattCharacteristic characteristic = findCharacteristic(currentGatt.gatt, operation);
                     if (characteristic == null) {
@@ -471,14 +473,18 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
         }
         sendBroadcast(i);
     }
-    private void broadcastGattError(int status){
-        Intent i = new Intent(BleConst.ACTION_DEVICE_ERROR);
+    private void broadcastGattError(BluetoothGatt gatt,int status){
+
         synchronized (gattSync) {
-            BleDeviceInfo info = new BleDeviceInfo(currentGatt.device.getName(),currentGatt.device.getAddress());
-            i.putExtra(BleConst.PARAM_DEVICE_NAME,info );
+            //if(currentGatt.gatt==gatt) {
+                Intent i = new Intent(BleConst.ACTION_DEVICE_ERROR);
+                BleDeviceInfo info = new BleDeviceInfo(currentGatt.device.getName(), currentGatt.device.getAddress());
+                i.putExtra(BleConst.PARAM_DEVICE_NAME, info);
+                i.putExtra(BleConst.PARAM_DEVICE_ERROR, status);
+                sendBroadcast(i);
+           // }
         }
-        i.putExtra(BleConst.PARAM_DEVICE_ERROR,status);
-        sendBroadcast(i);
+
     }
     private void broadcastDeviceList(){
         Intent i = new Intent(BleConst.ACTION_DEVICES_FOUND);
@@ -596,12 +602,14 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
         synchronized (gattSync) {
             if(currentGatt==null){
                 currentGatt=new BluetoothDeviceWrapper();
-                currentGatt.isReady=false;
+
             }
+            currentGatt.isReady=false;
             currentGatt.device=device;
             currentGatt.gatt = device.connectGatt(this, false, mGattCallback);
 
         }
+
         Log.d(TAG, myNum()+"Trying to create a new connection.");
         return true;
     }
@@ -615,10 +623,11 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
     public void disconnect() {
         synchronized (gattSync) {
             if (currentGatt!=null &&currentGatt.gatt != null) {
-                currentGatt.gatt.disconnect();
+
                // fix for https://issuetracker.google.com/37057260
                 final BluetoothGatt gattToClose=currentGatt.gatt;
-                syncTaskExecutor.execute(
+                gattToClose.disconnect();
+                disconnectExecutor.execute(
                         new Runnable() {
                             @Override
                             public void run() {
@@ -627,11 +636,13 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                                 } catch (InterruptedException e) {
                                     e.printStackTrace();
                                 }
+
                                 gattToClose.close();
+                                refreshDeviceCache(gattToClose);
                             }
                         }
                 );
-                currentGatt.gatt = null;
+                //currentGatt.gatt = null;
                 currentGatt.isReady=false;
             }
         }
@@ -665,7 +676,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
 
     public void reconnect(){
         synchronized(gattSync) {
-            if (currentGatt != null && currentGatt.device != null && currentGatt.gatt == null) {
+            if (currentGatt != null && currentGatt.device != null && !currentGatt.isReady) {
                 connect(currentGatt.device.getAddress(),currentGatt.autoReconnect);
             }
         }
@@ -730,5 +741,30 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                // resetCardsList();
             }
         }
+    }
+
+    public boolean refreshCurrentGatt(){
+        synchronized (gattSync) {
+            if (currentGatt != null && currentGatt.gatt != null) {
+                return refreshDeviceCache(currentGatt.gatt);
+            }
+        }
+        return false;
+    }
+
+
+    private boolean refreshDeviceCache(BluetoothGatt gatt){
+        try {
+            BluetoothGatt localBluetoothGatt = gatt;
+            Method localMethod = localBluetoothGatt.getClass().getMethod("refresh", new Class[0]);
+            if (localMethod != null) {
+                boolean bool = ((Boolean) localMethod.invoke(localBluetoothGatt, new Object[0])).booleanValue();
+                return bool;
+            }
+        }
+        catch (Exception localException) {
+            Log.e(TAG, "An exception occured while refreshing device");
+        }
+        return false;
     }
 }

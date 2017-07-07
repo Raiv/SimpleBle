@@ -705,6 +705,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                     mScanning=false;
                     currentScan=null;
                     broadcastScanFinish();
+                    resetCardsList();
                 }
             }
         }
@@ -738,7 +739,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                 mBluetoothAdapter.stopLeScan(currentScan);
                 currentScan = null;
                 //broadcastDeviceList();
-               // resetCardsList();
+                resetCardsList();
             }
         }
     }

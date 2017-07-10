@@ -21,6 +21,7 @@ import android.util.Log;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
@@ -157,6 +158,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
                             currentGatt.gatt = gatt;
                             currentGatt.gatt.discoverServices();
                         }else{
+                            disconnectGatt(gatt);
                             broadcastGattError(gatt,status);
                         }
                     }
@@ -606,12 +608,38 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
             }
             currentGatt.isReady=false;
             currentGatt.device=device;
-            currentGatt.gatt = device.connectGatt(this, false, mGattCallback);
+            synchronized (disconnectSync) {
+                currentGatt.gatt = device.connectGatt(this, false, mGattCallback);
+            }
 
         }
 
         Log.d(TAG, myNum()+"Trying to create a new connection.");
         return true;
+    }
+
+    private final Object disconnectSync = new Object();
+
+    private void disconnectGatt(final BluetoothGatt gatt){
+
+        gatt.disconnect();
+        disconnectExecutor.execute(
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        synchronized (disconnectSync) {
+                            try {
+                                Thread.sleep(100);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+
+                            gatt.close();
+                        }
+                        refreshDeviceCache(gatt);
+                    }
+                }
+        );
     }
 
     /**
@@ -625,23 +653,7 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
             if (currentGatt!=null &&currentGatt.gatt != null) {
 
                // fix for https://issuetracker.google.com/37057260
-                final BluetoothGatt gattToClose=currentGatt.gatt;
-                gattToClose.disconnect();
-                disconnectExecutor.execute(
-                        new Runnable() {
-                            @Override
-                            public void run() {
-                                try {
-                                    Thread.sleep(100);
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                }
-
-                                gattToClose.close();
-                                refreshDeviceCache(gattToClose);
-                            }
-                        }
-                );
+                disconnectGatt(currentGatt.gatt);
                 //currentGatt.gatt = null;
                 currentGatt.isReady=false;
             }
@@ -756,11 +768,19 @@ import ru.raiv.syncblestack.tasks.BleTaskCompleteCallback;
 
     private boolean refreshDeviceCache(BluetoothGatt gatt){
         try {
-            BluetoothGatt localBluetoothGatt = gatt;
-            Method localMethod = localBluetoothGatt.getClass().getMethod("refresh", new Class[0]);
+            final BluetoothGatt localBluetoothGatt = gatt;
+            Class<?> localClass = localBluetoothGatt.getClass();
+            Method[] all = localClass.getDeclaredMethods();
+            Method[] pubMethods = localClass.getMethods();
+            Method localMethod = localClass.getMethod("refresh");
+
             if (localMethod != null) {
-                boolean bool = ((Boolean) localMethod.invoke(localBluetoothGatt, new Object[0])).booleanValue();
+                Log.d(TAG,"refresh found");
+                boolean bool = (Boolean) localMethod.invoke(localBluetoothGatt);
+                Log.d(TAG, "refresh status:"+bool);
                 return bool;
+            }else{
+                Log.d(TAG,"refresh not found! declared methods:\n"+ Arrays.deepToString(all)+"\n public methods:\n"+Arrays.deepToString(pubMethods));
             }
         }
         catch (Exception localException) {
